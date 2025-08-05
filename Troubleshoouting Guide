@@ -1,0 +1,110 @@
+# 📄 Troubleshooting Guide for Tender Insight Hub
+
+This document provides solutions to common issues users may encounter while using the Tender Insight Hub platform. If your issue is not listed here, please contact our support team at support@tenderinsighthub.co.za.
+
+---
+
+## **🔍 Common Issues & Solutions**
+
+### **1. Login/Authentication Issues**
+#### **Issue:** "Invalid credentials" error when logging in.
+- **Solution:**  
+  - Ensure Caps Lock is off and re-enter your credentials.  
+  - Reset your password using the "Forgot Password" link.  
+  - Clear browser cache or try a different browser.  
+
+#### **Issue:** JWT token expired or invalid.  
+- **Solution:**  
+  - Log out and log back in to refresh the token.  
+  - Ensure your system clock is synchronized (JWT relies on timestamps).  
+
+---
+
+### **2. Search & Filtering Problems**
+#### **Issue:** No results appear after a search.  
+- **Solution:**  
+  - Check your internet connection.  
+  - Broaden your search terms or remove some filters.  
+  - If the issue persists, the API may be temporarily down—try again later.  
+
+#### **Issue:** Filters (e.g., province, budget) are not working.  
+- **Solution:**  
+  - Refresh the page to reset the filters.  
+  - Ensure you’ve selected valid filter combinations (e.g., a budget range that matches tenders).  
+
+---
+
+### **3. Document Upload & AI Summarization**
+#### **Issue:** "File not supported" error when uploading.  
+- **Solution:**  
+  - Ensure the file is in PDF or ZIP format (max 10MB).  
+  - Corrupted files may fail—try re-exporting the document.  
+
+#### **Issue:** AI summary is incomplete or inaccurate.  
+- **Solution:**  
+  - Check if the document contains extractable text (scanned PDFs may require OCR).  
+  - Re-upload the file—the model may have encountered a temporary error.  
+
+---
+
+### **4. Readiness Scoring Issues**
+#### **Issue:** Readiness score is 0 or seems incorrect.  
+- **Solution:**  
+  - Update your company profile with relevant certifications, experience, and sector details.  
+  - Ensure the tender’s eligibility criteria match your profile.  
+
+---
+
+### **5. Workspace & Collaboration Problems**
+#### **Issue:** Saved tenders disappear or aren’t syncing.  
+- **Solution:**  
+  - Refresh the page or log out and back in.  
+  - Check if another team member modified the workspace.  
+
+#### **Issue:** Cannot assign tasks or add notes.  
+- **Solution:**  
+  - Verify your user role has editing permissions (Team Member or higher).  
+  - Ensure you’re in the correct team workspace.  
+
+---
+
+### **6. Performance & Loading Errors**
+#### **Issue:** Slow API responses or timeouts.  
+- **Solution:**  
+  - Check your internet speed.  
+  - Reduce the number of concurrent requests (e.g., avoid multiple tabs).  
+
+#### **Issue:** Dashboard or analytics fail to load.  
+- **Solution:**  
+  - Clear browser cache or try a hard refresh (`Ctrl + F5`).  
+  - Disable browser extensions that may interfere (e.g., ad blockers).  
+
+---
+
+### **7. Billing & Subscription Issues**
+#### **Issue:** Unable to upgrade/downgrade SaaS plan.  
+- **Solution:**  
+  - Ensure your payment method is valid.  
+  - Contact support if the issue persists.  
+
+#### **Issue:** Pro features not unlocked after payment.  
+- **Solution:**  
+  - Wait 5–10 minutes for the system to process the transaction.  
+  - Log out and back in to refresh permissions.  
+
+---
+
+## **🚨 Emergency Contact**
+For critical issues (e.g., data loss, security concerns), email **urgent-support@tenderinsighthub.co.za** with "[URGENT]" in the subject line.
+
+---
+
+## **🔧 Proactive Tips**
+- Use Chrome/Firefox for optimal performance.  
+- Keep your company profile updated for accurate readiness scores.  
+- Regularly export workspace data for backup.  
+
+---
+
+**Last Updated:** August 2025  
+**Version:** 1.0
