@@ -1,0 +1,410 @@
+# =============================================================================
+# TENDER INSIGHT HUB - DOCKER COMPOSE CONFIGURATION
+# =============================================================================
+# Project: TIH-2025-001
+# Purpose: Multi-service orchestration for local development and testing
+# Services: FastAPI app, PostgreSQL, MongoDB, Redis, and monitoring tools
+
+version: '3.8'
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  tih-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# VOLUMES FOR DATA PERSISTENCE
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+services:
+  
+  # ===========================================================================
+  # MAIN APPLICATION SERVICE
+  # ===========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: "1.0.0"
+        BUILD_DATE: "${BUILD_DATE:-2025-08-10}"
+        VCS_REF: "${VCS_REF:-main}"
+    container_name: tih-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tih_user:tih_password@postgres:5432/tender_insight_hub
+      - MONGODB_URL=mongodb://tih_mongo:tih_mongo_password@mongodb:27017/tender_analytics
+      - REDIS_URL=redis://:tih_redis_password@redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+      # Mount source code for development (comment out for production)
+      - .:/app
+    networks:
+      - tih-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================================================
+  # POSTGRESQL DATABASE
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: tih-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: tender_insight_hub
+      POSTGRES_USER: tih_user
+      POSTGRES_PASSWORD: tih_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - tih-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tih_user -d tender_insight_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+
+  # ===========================================================================
+  # MONGODB DATABASE
+  # ===========================================================================
+  mongodb:
+    image: mongo:7-jammy
+    container_name: tih-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: tih_mongo
+      MONGO_INITDB_ROOT_PASSWORD: tih_mongo_password
+      MONGO_INITDB_DATABASE: tender_analytics
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - tih-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: --auth --wiredTigerCacheSizeGB 1
+
+  # ===========================================================================
+  # REDIS CACHE
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: tih-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: tih_redis_password
+    volumes:
+      - redis_data:/data
+      - ./configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - tih-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass tih_redis_password
+
+  # ===========================================================================
+  # BACKGROUND TASK WORKER (CELERY)
+  # ===========================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tih-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tih_user:tih_password@postgres:5432/tender_insight_hub
+      - MONGODB_URL=mongodb://tih_mongo:tih_mongo_password@mongodb:27017/tender_analytics
+      - REDIS_URL=redis://:tih_redis_password@redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+      - .:/app  # Development mode
+    networks:
+      - tih-network
+    command: ["celery", "-A", "app.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+
+  # ===========================================================================
+  # CELERY FLOWER (TASK MONITORING)
+  # ===========================================================================
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tih-flower
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://:tih_redis_password@redis:6379/0
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - tih-network
+    command: ["celery", "-A", "app.celery_app", "flower", "--port=5555"]
+
+  # ===========================================================================
+  # NGINX REVERSE PROXY (PRODUCTION)
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: tih-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./configs/ssl:/etc/nginx/ssl:ro
+      - uploads_data:/app/uploads:ro
+    depends_on:
+      - app
+    networks:
+      - tih-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================================================
+  # MONITORING & OBSERVABILITY
+  # ===========================================================================
+  
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tih-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - tih-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tih-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: tih_admin_password
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - ./configs/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./configs/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - tih-network
+    depends_on:
+      - prometheus
+
+  # ===========================================================================
+  # DEVELOPMENT TOOLS
+  # ===========================================================================
+  
+  # pgAdmin for PostgreSQL management (development only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tih-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@tenderinsighthub.co.za
+      PGADMIN_DEFAULT_PASSWORD: tih_pgadmin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - ./configs/pgadmin-servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - tih-network
+    depends_on:
+      - postgres
+    profiles:
+      - development
+
+  # MongoDB Express for MongoDB management (development only)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: tih-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: tih_mongo
+      ME_CONFIG_MONGODB_ADMINPASSWORD: tih_mongo_password
+      ME_CONFIG_MONGODB_URL: mongodb://tih_mongo:tih_mongo_password@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: tih_mongo_express_password
+    networks:
+      - tih-network
+    depends_on:
+      - mongodb
+    profiles:
+      - development
+
+  # ===========================================================================
+  # TESTING SERVICES
+  # ===========================================================================
+  
+  # Test database for integration tests
+  test-postgres:
+    image: postgres:15-alpine
+    container_name: tih-test-postgres
+    environment:
+      POSTGRES_DB: test_tender_insight_hub
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    networks:
+      - tih-network
+    profiles:
+      - testing
+    command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+
+  # Test MongoDB
+  test-mongodb:
+    image: mongo:7-jammy
+    container_name: tih-test-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test_mongo
+      MONGO_INITDB_ROOT_PASSWORD: test_mongo_password
+      MONGO_INITDB_DATABASE: test_tender_analytics
+    networks:
+      - tih-network
+    profiles:
+      - testing
+
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    container_name: tih-test-redis
+    networks:
+      - tih-network
+    profiles:
+      - testing
+    command: redis-server --save "" --appendonly no
+
+# =============================================================================
+# DOCKER COMPOSE PROFILES
+# =============================================================================
+# 
+# Usage Examples:
+# ---------------
+# 
+# # Start production services only
+# docker-compose up -d
+# 
+# # Start with development tools
+# docker-compose --profile development up -d
+# 
+# # Start testing environment
+# docker-compose --profile testing up -d
+# 
+# # Start everything
+# docker-compose --profile development --profile testing up -d
+# 
+# # Scale the application
+# docker-compose up -d --scale app=3
+# 
+# # View logs
+# docker-compose logs -f app
+# 
+# # Stop and remove all services
+# docker-compose down -v
+# 
+# # Rebuild and restart
+# docker-compose up -d --build
+# 
+# =============================================================================
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# =============================================================================
+# 
+# For different environments, create override files:
+# 
+# docker-compose.override.yml (automatically loaded)
+# docker-compose.prod.yml
+# docker-compose.staging.yml
+# 
+# Usage:
+# docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# 
+# =============================================================================
