@@ -1,0 +1,389 @@
+# =============================================================================
+# TENDER INSIGHT HUB - PYTHON PROJECT CONFIGURATION
+# =============================================================================
+# Project: TIH-2025-001
+# Description: Modern Python project configuration using pyproject.toml
+# Standards: PEP 517, PEP 518, PEP 621
+
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# =============================================================================
+# PROJECT METADATA
+# =============================================================================
+[project]
+name = "tender-insight-hub"
+version = "1.0.0"
+description = "Cloud-Native SaaS Platform for SME Tender Management in South Africa"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Sinethemba Mthembu", email = "202201661@mycput.ac.za"},
+    {name = "Ashwill Bradley Herman", email = "202108414@mycput.ac.za"},
+    {name = "Koketso Kgogo", email = "202107686@mycput.ac.za"},
+    {name = "Onthatile Kilelo", email = "202213333@mycput.ac.za"},
+    {name = "Khethiwe Skosana", email = "202205775@mycput.ac.za"},
+]
+maintainers = [
+    {name = "TIH Development Team", email = "dev@tenderinsighthub.co.za"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+keywords = [
+    "fastapi",
+    "saas",
+    "tender-management",
+    "sme",
+    "south-africa",
+    "ai",
+    "document-processing",
+    "procurement",
+    "government-contracts",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.23",
+    "alembic>=1.12.1",
+    "psycopg2-binary>=2.9.9",
+    "pymongo>=4.6.0",
+    "redis>=5.0.1",
+    "pydantic>=2.5.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "transformers>=4.36.0",
+    "torch>=2.1.1",
+    "PyPDF2>=3.0.1",
+    "python-docx>=1.1.0",
+    "httpx>=0.25.2",
+    "pandas>=2.1.4",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "black>=23.11.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.1",
+    "pre-commit>=3.5.0",
+    "factory-boy>=3.3.0",
+    "faker>=20.1.0",
+]
+monitoring = [
+    "sentry-sdk>=1.39.1",
+    "prometheus-client>=0.19.0",
+    "elastic-apm>=6.20.0",
+]
+cloud-aws = [
+    "boto3>=1.34.0",
+    "botocore>=1.34.0",
+]
+cloud-azure = [
+    "azure-storage-blob>=12.19.0",
+]
+cloud-gcp = [
+    "google-cloud-storage>=2.10.0",
+]
+all = [
+    "tender-insight-hub[dev,monitoring,cloud-aws,cloud-azure,cloud-gcp]"
+]
+
+[project.urls]
+Homepage = "https://tenderinsighthub.co.za"
+Documentation = "https://docs.tenderinsighthub.co.za"
+Repository = "https://github.com/tih-dev-team/tender-insight-hub"
+Issues = "https://github.com/tih-dev-team/tender-insight-hub/issues"
+Changelog = "https://github.com/tih-dev-team/tender-insight-hub/blob/main/CHANGELOG.md"
+
+[project.scripts]
+tih = "app.cli:main"
+tih-server = "app.main:run_server"
+tih-worker = "app.celery_app:run_worker"
+
+# =============================================================================
+# SETUPTOOLS CONFIGURATION
+# =============================================================================
+[tool.setuptools]
+package-dir = {"" = "."}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["tests*", "docs*", "scripts*"]
+
+[tool.setuptools.package-data]
+app = [
+    "templates/*.html",
+    "static/**/*",
+    "alembic.ini",
+    "alembic/versions/*.py",
+]
+
+# =============================================================================
+# BLACK CODE FORMATTER
+# =============================================================================
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+# =============================================================================
+# ISORT IMPORT SORTING
+# =============================================================================
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+src_paths = ["app", "tests"]
+skip_glob = ["*/migrations/*"]
+known_first_party = ["app"]
+known_third_party = [
+    "fastapi",
+    "sqlalchemy",
+    "pydantic",
+    "pytest",
+    "transformers",
+    "pandas",
+    "redis",
+    "pymongo",
+]
+
+# =============================================================================
+# MYPY TYPE CHECKING
+# =============================================================================
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+# Ignore missing type stubs for some packages
+[[tool.mypy.overrides]]
+module = [
+    "transformers.*",
+    "torch.*",
+    "PyPDF2.*",
+    "docx.*",
+    "celery.*",
+]
+ignore_missing_imports = true
+
+# =============================================================================
+# PYTEST CONFIGURATION
+# =============================================================================
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+    "--junitxml=reports/junit.xml",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "ai: marks tests that require AI model access",
+    "external_api: marks tests that call external APIs",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+# =============================================================================
+# COVERAGE CONFIGURATION
+# =============================================================================
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "app/main.py",  # Entry point, minimal logic
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+ignore_errors = true
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "reports/htmlcov"
+
+# =============================================================================
+# FLAKE8 LINTING
+# =============================================================================
+[tool.flake8]
+max-line-length = 88
+extend-ignore = [
+    "E203",  # whitespace before ':'
+    "E501",  # line too long (handled by black)
+    "W503",  # line break before binary operator
+    "W504",  # line break after binary operator
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+    "migrations",
+]
+per-file-ignores = [
+    "__init__.py:F401",  # imported but unused
+    "test_*.py:S101",    # use of assert
+]
+
+# =============================================================================
+# BANDIT SECURITY LINTING
+# =============================================================================
+[tool.bandit]
+exclude_dirs = ["tests", "migrations"]
+skips = ["B101", "B601"]  # Skip assert_used and shell_injection_process_args in tests
+
+# =============================================================================
+# DEVELOPMENT SCRIPTS
+# =============================================================================
+[tool.setuptools.entry-points]
+
+[project.entry-points."console_scripts"]
+tih-dev-server = "scripts.dev_server:main"
+tih-migrate = "scripts.migrate:main"
+tih-seed-data = "scripts.seed_data:main"
+
+# =============================================================================
+# PACKAGE DISCOVERY
+# =============================================================================
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT
+# =============================================================================
+[tool.setuptools_scm]
+write_to = "app/_version.py"
+version_scheme = "release-branch-semver"
+
+# =============================================================================
+# PRE-COMMIT CONFIGURATION REFERENCE
+# =============================================================================
+# Note: Actual pre-commit config should be in .pre-commit-config.yaml
+# This is just for reference in pyproject.toml
+
+# Example pre-commit hooks that should be configured:
+# - black (code formatting)
+# - isort (import sorting)  
+# - flake8 (linting)
+# - mypy (type checking)
+# - bandit (security linting)
+# - pytest (run tests)
+
+# =============================================================================
+# WHEEL BUILDING
+# =============================================================================
+[tool.wheel]
+universal = false
+
+[tool.bdist_wheel]
+universal = false
+
+# =============================================================================
+# PROJECT STANDARDS
+# =============================================================================
+# This project follows:
+# - PEP 8: Style Guide for Python Code
+# - PEP 484: Type Hints
+# - PEP 517: Backend Interface
+# - PEP 518: Build System Requirements
+# - PEP 621: Project Metadata
+# - PEP 660: Editable Installs
+# 
+# Code Quality Standards:
+# - 80%+ test coverage requirement
+# - Type hints on all public functions
+# - Docstrings for all modules, classes, and functions
+# - Security scanning with bandit
+# - Dependency vulnerability scanning
+# 
+# =============================================================================
