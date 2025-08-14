@@ -1,0 +1,115 @@
+"""
+Tender Insight Hub - Main API Router
+Defines all routes and dependencies for the FastAPI backend.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from typing import Annotated
+
+# Import submodule routers
+from .routers import (
+    auth_router,
+    search_router,
+    summarization_router,
+    scoring_router,
+    workspace_router,
+    analytics_router,
+    admin_router
+)
+
+# Import security and utils
+from .dependencies import (
+    get_current_user,
+    validate_tenant_access,
+    RoleChecker
+)
+from .models import User, Tenant
+
+# Initialize main router
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["TenderInsightHub"],
+    responses={404: {"description": "Not found"}}
+)
+
+# JWT Authentication setup
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+
+# Include all sub-routers with dependencies
+router.include_router(
+    auth_router,
+    prefix="/auth",
+    tags=["Authentication"]
+)
+
+router.include_router(
+    search_router,
+    prefix="/search",
+    tags=["Search"],
+    dependencies=[Depends(get_current_user)]
+)
+
+router.include_router(
+    summarization_router,
+    prefix="/summarize",
+    tags=["AI Summarization"],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(RoleChecker(["team_member", "admin"]))
+    ]
+)
+
+router.include_router(
+    scoring_router,
+    prefix="/scoring",
+    tags=["Readiness Scoring"],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(validate_tenant_access)
+    ]
+)
+
+router.include_router(
+    workspace_router,
+    prefix="/workspace",
+    tags=["Workspace"],
+    dependencies=[Depends(get_current_user)]
+)
+
+router.include_router(
+    analytics_router,
+    prefix="/analytics",
+    tags=["Analytics"],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(RoleChecker(["pro_user", "admin"]))
+    ]
+)
+
+router.include_router(
+    admin_router,
+    prefix="/admin",
+    tags=["Admin"],
+    dependencies=[
+        Depends(get_current_user),
+        Depends(RoleChecker(["admin"]))
+    ]
+)
+
+# Health check endpoint
+@router.get("/health")
+async def health_check():
+    return {"status": "healthy", "version": "1.0.0"}
+
+# Tenant isolation middleware example
+@router.get("/tenant-info")
+async def get_tenant_info(
+    current_user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(validate_tenant_access)]
+):
+    return {
+        "tenant_id": tenant.id,
+        "plan": tenant.saas_plan,
+        "user_role": current_user.role
+    }
